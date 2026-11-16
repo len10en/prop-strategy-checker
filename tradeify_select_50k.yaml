@@ -1,0 +1,84 @@
+# Tradeify Select 50K -> Select Flex (5-Day payout policy)
+# Source of truth: Tradeify Help Center (help.tradeify.co). Verified 2026-11-16.
+# Rule: if a number here changes at the firm, edit THIS file only.
+# Keys starting with "own_" are OUR engineering margins, not firm rules.
+
+firm: Tradeify
+plan: Select 50K (Flex payout policy)
+sources:
+  evaluation: https://help.tradeify.co/en/articles/12853921-select-evaluation-accounts
+  payouts: https://help.tradeify.co/en/articles/12853966-select-flex-and-select-daily-payout-policies
+  pricing: https://help.tradeify.co/en/articles/14369021-tradeify-pricing-reference
+  trading_times: https://help.tradeify.co/en/articles/10495876-rules-permitted-times-to-trade
+  guidelines: https://help.tradeify.co/en/articles/10468318
+
+account:
+  start_balance: 50000
+
+drawdown:
+  mode: EOD_trailing          # floor ratchets on closing balance only
+  intraday_enforced: true     # touching the floor intraday fails the account immediately
+  lock_buffer: 100            # floor locks permanently at start_balance + 100
+                              # (auto at EOD when balance >= start + max_drawdown + 100,
+                              #  or immediately when a payout is requested)
+
+evaluation:
+  profit_target: 3000         # accounts bought before the new dashboard keep 2500; assume 3000
+  max_drawdown: 2000
+  daily_loss_limit: null      # none in evaluation
+  consistency: 0.40           # best day must be <= 40% of TOTAL profit (50% add-on costs more)
+  min_trading_days: 3
+  max_micros: 40              # 4 minis; 10 micros = 1 mini
+  news_trading: allowed       # Tier 1 news allowed
+  time_limit_days: null       # no time limit
+
+funded_flex:
+  max_drawdown: 2000
+  daily_loss_limit: null
+  consistency: null           # consistency rule applies to evaluation only
+  start_micros: 20            # funded accounts start at 2 minis / 20 micros
+  scaling:                    # profit-to-date (EOD) -> max micros from next day, never steps back
+    - [1500, 30]
+    - [2000, 40]
+  winning_day_threshold: 150  # a "winning day" = day P&L >= $150
+  winning_days_per_payout: 5
+  payout_fraction: 0.50       # up to 50% of (balance - start_balance)
+  payout_cap: 2500            # accounts bought on/after 2026-09-01 (older: 3000)
+  min_payout: 250
+  profit_split_trader: 0.90
+  cycle_rule: positive_net_profit_each_cycle_after_first_payout
+  live_review_after_payouts: 3   # minimum for CONSIDERATION only, not automatic
+
+costs:
+  evaluation_fee: 165         # one-time purchase, no subscription, no activation fee
+  reset_fee: 109              # resets: up to 10 per evaluation per 30 days
+  funded_breach: new_evaluation_required
+  max_evaluations_per_30_days: 15
+  max_funded_accounts: 5
+
+session:
+  timezone: America/New_York
+  trading_day_start: "18:00"  # trading day runs 18:00 ET -> 17:00 ET next calendar day
+  flat_by: "16:45"            # 12:59 on holiday half-days. (Some secondary sources say 16:59;
+                              #  Tradeify's own page says 16:45. We obey the stricter one.)
+  own_flatten_at: "16:40"     # engineering margin: auto-close 5 min early (auto-close can slip)
+  overnight: forbidden
+  weekend: forbidden
+
+conduct:
+  bots: allowed_if_sole_owner  # personal strategy only; no sharing; not used at other firms
+  hft_bots: forbidden
+  hedging_correlated: forbidden  # engine trades ONE product, ONE direction at a time
+  microscalping: more_than_half_of_trades_held_over_10s   # secondary-source wording
+  own_min_hold_seconds: 60       # NO scalping: every single trade must last >= 60s
+  own_median_hold_minutes: 5     # and the typical trade must last >= 5 minutes
+  own_max_trades_per_day: 20     # margin well below anything resembling HFT
+  own_single_product_at_a_time: true
+
+instruments:
+  MES: {tick_size: 0.25, tick_value: 1.25, point_value: 5.0,  micro_of: ES}
+  MNQ: {tick_size: 0.25, tick_value: 0.50, point_value: 2.0,  micro_of: NQ}
+  ES:  {tick_size: 0.25, tick_value: 12.50, point_value: 50.0}
+  NQ:  {tick_size: 0.25, tick_value: 5.00,  point_value: 20.0}
+  # MES price series == ES price series (and MNQ == NQ), only the multiplier differs,
+  # so ES/NQ historical data is valid for backtesting MES/MNQ.
